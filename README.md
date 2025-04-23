@@ -11,36 +11,76 @@ This Streamlit application uses Google's Generative AI (Gemini) to automate the 
 - Detailed feedback and numerical grades
 - Simple and intuitive interface
 
-## Setup
+## Sample Data
 
-1. Clone this repository
-2. Install the required dependencies:
+The repository includes sample data files in the `data/` directory:
+- `arima_hw5_solution_perfect.pdf/docx`: Example solution
+- `arima_hw5_student_Cplus.pdf/docx`: Example student submission
+- `arima_hw5_grading_rubric.pdf/docx`: Example grading rubric
+
+## Setup & Deployment
+
+### Option 1: Docker Deployment (Recommended)
+
+1. Clone this repository:
    ```bash
-   pip install -r requirements.txt
+   git clone https://github.com/dan-shah/streamlit-grader.git
+   cd streamlit-grader
    ```
-3. Create a `.env` file in the root directory and add your Google API key:
+
+2. Create a `.env` file with your Google API key:
    ```
    GOOGLE_API_KEY=your_api_key_here
    ```
-   You can get your API key from the [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-## Usage
+3. Build and run with Docker Compose:
+   ```bash
+   docker-compose up --build
+   ```
 
-1. Run the Streamlit app:
+4. Open your browser and navigate to `http://localhost:8501`
+
+### Option 2: Local Development
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/dan-shah/streamlit-grader.git
+   cd streamlit-grader
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Create a `.env` file with your Google API key:
+   ```
+   GOOGLE_API_KEY=your_api_key_here
+   ```
+
+5. Run the application:
    ```bash
    streamlit run app.py
    ```
-2. Open your web browser and navigate to the provided local URL
-3. Upload the solution PDF
-4. Upload the student submission PDF
-5. (Optional) Upload a rubric PDF
-6. Click "Grade Assignment" to get the results
+
+## Getting Your Google API Key
+
+1. Go to the [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Copy the key to your `.env` file
 
 ## Requirements
 
 - Python 3.7+
 - Google API key with access to Gemini
 - PDF files for solutions and submissions
+- Docker (optional, for containerized deployment)
 
 ## Note
 
