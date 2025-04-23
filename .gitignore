@@ -10,4 +10,8 @@ venv/
 
 # Bytecode files
 __pycache__/
-*.pyc 
+*.pyc
+
+# macOS system files
+.DS_Store
+**/.DS_Store 
