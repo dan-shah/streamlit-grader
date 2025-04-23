@@ -2,81 +2,147 @@ import streamlit as st
 import google.generativeai as genai
 import PyPDF2
 import os
-from dotenv import load_dotenv
-import io
+from pathlib import Path
+import tempfile
 
-# Load environment variables
-load_dotenv()
+# Set page config
+st.set_page_config(
+    page_title="AI Assignment Grader",
+    page_icon="📚",
+    layout="wide"
+)
 
-# Configure Google Generative AI
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+# Initialize session state
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = None
 
 def extract_text_from_pdf(pdf_file):
     """Extract text from a PDF file."""
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
     text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text()
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+    except Exception as e:
+        st.error(f"Error extracting text from PDF: {str(e)}")
+        return None
     return text
 
-def grade_assignment(assignment_rubric_text, solution_text, student_text):
-    """Grade the assignment using Gemini."""
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
-    # Construct the detailed prompt
-    prompt_parts = [
-        "Act as an expert teacher grading an assignment. Your task is to provide a comprehensive evaluation of the student's submission compared to the provided solution.",
-        "\\n**Instructions:**\\n",
-        "1.  **Compare Thoroughly:** Analyze the student's submission against the solution, noting similarities, differences, correct concepts, errors, and omissions.",
-        "2.  **Use the Assignment and Rubric:** The assignment document includes both the assignment requirements and grading rubric. Use these criteria when evaluating.",
-        "3.  **Provide Structured Feedback:** Organize your response into the following sections using markdown headings:",
-        "    *   **## Overall Grade:** Provide a numerical grade between 0 and 100.",
-        "    *   **## Detailed Feedback:** Explain the reasoning behind the grade. Highlight strengths and weaknesses. Reference specific parts of the student's submission and the solution.",
-        "    *   **## Areas for Improvement:** Offer specific, actionable suggestions for how the student can improve their understanding or performance on similar tasks in the future.",
-        "\\n**Input Documents:**\\n",
-        f"*   **Assignment and Rubric:**\\n    ```\\n{assignment_rubric_text}\\n    ```\\n",
-        f"*   **Solution:**\\n    ```\\n{solution_text}\\n    ```\\n",
-        f"*   **Student Submission:**\\n    ```\\n{student_text}\\n    ```"
-    ]
-    
-    prompt_parts.append("\\n**Begin Evaluation:**\\n")
+def grade_assignment(assignment_text, solution_text, submission_text, api_key):
+    """Grade the assignment using Google's Generative AI."""
+    try:
+        # Configure the API
+        genai.configure(api_key=api_key)
+        
+        # Initialize the model
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # Create the prompt
+        prompt = f"""
+        You are an expert assignment grader. Please grade the following student submission based on the assignment requirements and solution.
+        
+        Assignment Requirements (including rubric):
+        {assignment_text}
+        
+        Solution:
+        {solution_text}
+        
+        Student Submission:
+        {submission_text}
+        
+        Please provide:
+        1. A detailed grade (out of 100)
+        2. Specific feedback on what was done well
+        3. Areas for improvement
+        4. Suggestions for better performance
+        """
+        
+        # Generate response
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        st.error(f"Error grading assignment: {str(e)}")
+        return None
 
-    prompt = "\\n".join(prompt_parts)
+def load_sample_files():
+    """Load sample files from the data directory."""
+    data_dir = Path("data")
+    try:
+        assignment_file = data_dir / "arima_hw5_assignment_and_rubric.pdf"
+        solution_file = data_dir / "arima_hw5_solution_perfect.pdf"
+        submission_file = data_dir / "arima_hw5_student_Cplus.pdf"
+        
+        return {
+            "assignment": assignment_file,
+            "solution": solution_file,
+            "submission": submission_file
+        }
+    except Exception as e:
+        st.error(f"Error loading sample files: {str(e)}")
+        return None
 
-    # Generate content
-    response = model.generate_content(prompt)
-    return response.text
+# Main app
+st.title("📚 AI Assignment Grader")
+st.markdown("""
+This application uses Google's Generative AI to automatically grade assignments by comparing student submissions 
+against assignment requirements and solution PDFs.
+""")
 
-def main():
-    st.title("AI Assignment Grader")
-    st.write("Upload assignment (with rubric), solution, and student submission PDFs for automated grading.")
-    
-    # File uploaders
-    assignment_rubric_file = st.file_uploader("Upload Assignment and Rubric PDF", type=['pdf'])
-    solution_file = st.file_uploader("Upload Solution PDF", type=['pdf'])
-    student_file = st.file_uploader("Upload Student Submission PDF", type=['pdf'])
-    
-    if st.button("Grade Assignment"):
-        if assignment_rubric_file and solution_file and student_file:
-            try:
-                # Extract text from PDFs
-                assignment_rubric_text = extract_text_from_pdf(assignment_rubric_file)
-                solution_text = extract_text_from_pdf(solution_file)
-                student_text = extract_text_from_pdf(student_file)
+# API Key input
+api_key = st.text_input("Enter your Google API Key:", type="password", value=st.session_state.api_key)
+if api_key:
+    st.session_state.api_key = api_key
+
+# File upload section
+st.header("Upload Files")
+use_sample_files = st.checkbox("Use sample files for testing")
+
+if use_sample_files:
+    sample_files = load_sample_files()
+    if sample_files:
+        st.success("Sample files loaded successfully!")
+        assignment_file = sample_files["assignment"]
+        solution_file = sample_files["solution"]
+        submission_file = sample_files["submission"]
+else:
+    assignment_file = st.file_uploader("Upload Assignment PDF (includes rubric)", type="pdf")
+    solution_file = st.file_uploader("Upload Solution PDF", type="pdf")
+    submission_file = st.file_uploader("Upload Student Submission PDF", type="pdf")
+
+# Grade button
+if st.button("Grade Assignment"):
+    if not st.session_state.api_key:
+        st.error("Please enter your Google API Key first!")
+    elif not use_sample_files and (not assignment_file or not solution_file or not submission_file):
+        st.error("Please upload all required PDF files!")
+    else:
+        with st.spinner("Grading assignment..."):
+            # Extract text from PDFs
+            assignment_text = extract_text_from_pdf(assignment_file)
+            solution_text = extract_text_from_pdf(solution_file)
+            submission_text = extract_text_from_pdf(submission_file)
+            
+            if all([assignment_text, solution_text, submission_text]):
+                # Grade the assignment
+                result = grade_assignment(
+                    assignment_text,
+                    solution_text,
+                    submission_text,
+                    st.session_state.api_key
+                )
                 
-                # Show loading spinner
-                with st.spinner("Grading assignment..."):
-                    # Get grading results
-                    results = grade_assignment(assignment_rubric_text, solution_text, student_text)
-                    
-                    # Display results
-                    st.subheader("Grading Results")
-                    st.write(results)
-                    
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-        else:
-            st.warning("Please upload assignment (with rubric), solution, and student submission PDFs.")
+                if result:
+                    st.success("Grading completed!")
+                    st.markdown("### Grading Results")
+                    st.markdown(result)
+            else:
+                st.error("Failed to extract text from one or more PDF files. Please ensure they are text-based PDFs.")
 
-if __name__ == "__main__":
-    main() 
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center'>
+    <p>Built with ❤️ using Streamlit and Google's Generative AI</p>
+    <p>For more information, visit the <a href='https://github.com/dan-shah/streamlit-grader'>GitHub repository</a></p>
+</div>
+""", unsafe_allow_html=True) 
