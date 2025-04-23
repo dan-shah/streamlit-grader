@@ -1,12 +1,12 @@
 # AI Assignment Grader
 
-This Streamlit application uses Google's Generative AI (Gemini) to automate the grading of assignments. It compares student submissions against solution PDFs and optional rubrics to provide detailed feedback and grades.
+This Streamlit application uses Google's Generative AI (Gemini) to automate the grading of assignments. It compares student submissions against assignment requirements (which include the rubric) and solution PDFs to provide detailed feedback and grades.
 
 ## Features
 
+- Upload assignment PDF (includes rubric)
 - Upload solution PDFs
 - Upload student submission PDFs
-- Optional rubric upload
 - Automated grading using Gemini AI
 - Detailed feedback and numerical grades
 - Simple and intuitive interface
@@ -16,7 +16,7 @@ This Streamlit application uses Google's Generative AI (Gemini) to automate the 
 The repository includes sample data files in the `data/` directory:
 - `arima_hw5_solution_perfect.pdf/docx`: Example solution
 - `arima_hw5_student_Cplus.pdf/docx`: Example student submission
-- `arima_hw5_grading_rubric.pdf/docx`: Example grading rubric
+- `arima_hw5_grading_rubric.pdf/docx`: Example assignment with rubric
 
 ## Setup & Deployment
 
@@ -69,6 +69,18 @@ The repository includes sample data files in the `data/` directory:
    streamlit run app.py
    ```
 
+## Usage
+
+1. Upload the assignment PDF (includes rubric) (required)
+2. Upload the solution PDF (required)
+3. Upload the student submission PDF (required)
+4. Click "Grade Assignment" to get the results
+
+The application will:
+- Compare the student's submission against the assignment requirements and rubric
+- Evaluate the solution against the assignment criteria
+- Generate a detailed grade and feedback
+
 ## Getting Your Google API Key
 
 1. Go to the [Google AI Studio](https://makersuite.google.com/app/apikey)
@@ -79,7 +91,7 @@ The repository includes sample data files in the `data/` directory:
 
 - Python 3.7+
 - Google API key with access to Gemini
-- PDF files for solutions and submissions
+- PDF files for assignments (with rubric), solutions, and submissions
 - Docker (optional, for containerized deployment)
 
 ## Note
