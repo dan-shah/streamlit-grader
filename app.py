@@ -25,15 +25,15 @@ if 'rubric_feedback' not in st.session_state:
 
 # Define Pydantic models for structured output
 class ImprovementSuggestion(BaseModel):
-    area: str = Field(description="Area of improvement")
-    suggestion: str = Field(description="Specific suggestion for improvement")
+    area: str = Field(..., description="Area of improvement")
+    suggestion: str = Field(..., description="Specific suggestion for improvement")
 
 class GradingFeedback(BaseModel):
-    numerical_grade: int = Field(description="Numerical grade from 0-100", ge=0, le=100)
-    overall_assessment: str = Field(description="Overall assessment of the submission")
-    strengths: list[str] = Field(description="List of strengths in the submission")
-    weaknesses: list[str] = Field(description="List of weaknesses in the submission")
-    improvement_suggestions: list[ImprovementSuggestion] = Field(description="Suggestions for improvement")
+    numerical_grade: int = Field(..., description="Numerical grade from 0-100", ge=0, le=100)
+    overall_assessment: str = Field(..., description="Overall assessment of the submission")
+    strengths: list = Field(..., description="List of strengths in the submission")
+    weaknesses: list = Field(..., description="List of weaknesses in the submission")
+    improvement_suggestions: list = Field(..., description="Suggestions for improvement")
 
 def extract_text_from_pdf(pdf_file):
     """Extract text from a PDF file."""
