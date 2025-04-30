@@ -254,8 +254,19 @@ def display_grading_results(results):
         
         st.markdown("### Specific Suggestions")
         for i, suggestion in enumerate(results.improvement_suggestions, 1):
-            st.markdown(f"**{i}. {suggestion.area}**")
-            st.markdown(f"   {suggestion.suggestion}")
+            # Handle both ImprovementSuggestion objects and dictionaries
+            if isinstance(suggestion, dict):
+                area = suggestion.get('area', f'Suggestion {i}')
+                suggestion_text = suggestion.get('suggestion', 'No details provided')
+                st.markdown(f"**{i}. {area}**")
+                st.markdown(f"   {suggestion_text}")
+            else:
+                try:
+                    st.markdown(f"**{i}. {suggestion.area}**")
+                    st.markdown(f"   {suggestion.suggestion}")
+                except AttributeError:
+                    st.markdown(f"**{i}. Suggestion {i}**")
+                    st.markdown(f"   {str(suggestion)}")
     elif isinstance(results, dict) and "raw_response" in results:
         # Display raw response if structured parsing failed
         st.markdown("### Grading Results")
