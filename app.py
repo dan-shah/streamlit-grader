@@ -32,12 +32,21 @@ class ImprovementSuggestion(BaseModel):
     area: str = Field(..., description="Area of improvement")
     suggestion: str = Field(..., description="Specific suggestion for improvement")
 
+class PointDeduction(BaseModel):
+    area: str = Field(..., description="Area where points were deducted")
+    points: int = Field(..., description="Number of points deducted")
+    reason: str = Field(..., description="Reason for the deduction")
+
+class ConceptImprovement(BaseModel):
+    concept: str = Field(..., description="Concept that needs better understanding")
+    suggestion: str = Field(..., description="Specific suggestion to improve understanding")
+
 class GradingFeedback(BaseModel):
     numerical_grade: int = Field(..., description="Numerical grade from 0-100", ge=0, le=100)
     overall_assessment: str = Field(..., description="Overall assessment of the submission")
     strengths: list = Field(..., description="List of strengths in the submission")
-    weaknesses: list = Field(..., description="List of weaknesses in the submission")
-    improvement_suggestions: list = Field(..., description="Suggestions for improvement")
+    point_deductions: list = Field(..., description="Areas where points were deducted")
+    concept_improvements: list = Field(..., description="Suggestions to better grasp concepts")
 
 def extract_text_from_pdf(pdf_file):
     """Extract text from a PDF file."""
@@ -160,23 +169,33 @@ def grade_assignment(assignment_text, solution_text, submission_text, api_key, i
         # Add structured output instructions
         prompt += """
         
-        Please provide a detailed evaluation of the student's work, highlighting strengths, weaknesses,
-        and areas for improvement. Be specific and constructive.
+        Please provide a detailed evaluation focusing on:
+        1. Overall grade with clear justification
+        2. Specific strengths shown in the submission
+        3. EXPLICIT point deductions - exactly where and why points were lost
+        4. Concept-focused improvement suggestions that would help the student better understand the material
+        
+        IMPORTANT: The total points deducted MUST exactly equal (100 - final_grade). For example, if you assign a grade of 85/100, you must show exactly 15 points of deductions with specific reasons.
         
         Your response should be provided as structured JSON following this schema:
         
-        class ImprovementSuggestion:
-            area: str  # Area of improvement
-            suggestion: str  # Specific suggestion for improvement
+        class PointDeduction:
+            area: str  # Area where points were deducted
+            points: int  # Number of points deducted
+            reason: str  # Reason for the deduction
+        
+        class ConceptImprovement:
+            concept: str  # Concept that needs better understanding
+            suggestion: str  # Specific suggestion to improve understanding
         
         class GradingFeedback:
             numerical_grade: int  # Numerical grade from 0-100
             overall_assessment: str  # Overall assessment of the submission
             strengths: list[str]  # List of strengths in the submission
-            weaknesses: list[str]  # List of weaknesses in the submission
-            improvement_suggestions: list[ImprovementSuggestion]  # Suggestions for improvement
+            point_deductions: list[PointDeduction]  # Areas where points were deducted
+            concept_improvements: list[ConceptImprovement]  # Suggestions to better grasp concepts
         
-        Please respond with ONLY a valid JSON object following this schema.
+        Please respond with ONLY a valid JSON object following this schema. Make sure your total point deductions logically explain how you arrived at the final grade and EXACTLY add up to (100 - numerical_grade).
         """
         
         # Generate structured response
@@ -248,25 +267,53 @@ def display_grading_results(results):
         for i, strength in enumerate(results.strengths, 1):
             st.markdown(f"**{i}.** {strength}")
         
-        st.markdown("### Areas for Improvement")
-        for i, weakness in enumerate(results.weaknesses, 1):
-            st.markdown(f"**{i}.** {weakness}")
-        
-        st.markdown("### Specific Suggestions")
-        for i, suggestion in enumerate(results.improvement_suggestions, 1):
-            # Handle both ImprovementSuggestion objects and dictionaries
-            if isinstance(suggestion, dict):
-                area = suggestion.get('area', f'Suggestion {i}')
-                suggestion_text = suggestion.get('suggestion', 'No details provided')
-                st.markdown(f"**{i}. {area}**")
-                st.markdown(f"   {suggestion_text}")
+        st.markdown("### Point Deductions")
+        total_deducted = 0
+        for i, deduction in enumerate(results.point_deductions, 1):
+            # Handle both object and dictionary formats
+            if isinstance(deduction, dict):
+                area = deduction.get('area', f'Area {i}')
+                points = deduction.get('points', 0)
+                reason = deduction.get('reason', 'No reason provided')
+                total_deducted += points
+                st.markdown(f"**{i}. {area} (-{points} points)**")
+                st.markdown(f"   {reason}")
             else:
                 try:
-                    st.markdown(f"**{i}. {suggestion.area}**")
-                    st.markdown(f"   {suggestion.suggestion}")
+                    total_deducted += deduction.points
+                    st.markdown(f"**{i}. {deduction.area} (-{deduction.points} points)**")
+                    st.markdown(f"   {deduction.reason}")
                 except AttributeError:
-                    st.markdown(f"**{i}. Suggestion {i}**")
-                    st.markdown(f"   {str(suggestion)}")
+                    st.markdown(f"**{i}. Deduction {i}**")
+                    st.markdown(f"   {str(deduction)}")
+        
+        # Point calculation summary
+        total_possible = 100
+        st.markdown("### Grade Calculation")
+        st.markdown(f"**Starting Points:** {total_possible}")
+        st.markdown(f"**Total Points Deducted:** -{total_deducted}")
+        st.markdown(f"**Final Score:** {results.numerical_grade}")
+        
+        # Verify that the calculation adds up
+        expected_score = total_possible - total_deducted
+        if expected_score != results.numerical_grade:
+            st.warning(f"Note: There appears to be a discrepancy in point calculation. Based on deductions, the expected score would be {expected_score}.")
+        
+        st.markdown("### Concept Improvement Suggestions")
+        for i, improvement in enumerate(results.concept_improvements, 1):
+            # Handle both object and dictionary formats
+            if isinstance(improvement, dict):
+                concept = improvement.get('concept', f'Concept {i}')
+                suggestion = improvement.get('suggestion', 'No suggestion provided')
+                st.markdown(f"**{i}. {concept}**")
+                st.markdown(f"   {suggestion}")
+            else:
+                try:
+                    st.markdown(f"**{i}. {improvement.concept}**")
+                    st.markdown(f"   {improvement.suggestion}")
+                except AttributeError:
+                    st.markdown(f"**{i}. Improvement {i}**")
+                    st.markdown(f"   {str(improvement)}")
     elif isinstance(results, dict) and "raw_response" in results:
         # Display raw response if structured parsing failed
         st.markdown("### Grading Results")
