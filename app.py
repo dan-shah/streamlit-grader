@@ -332,28 +332,15 @@ if assignment_file and st.button("Analyze Rubric/Assignment"):
                     st.session_state.grading_advice = analysis_result["advice"]
                     st.success("Rubric analysis completed!")
                     
-                    # Display the analysis in two columns
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("### Rubric Improvement Recommendations")
-                        st.markdown(st.session_state.rubric_improvements)
-                    
-                    with col2:
-                        st.markdown("### Grading Advice")
-                        st.markdown(st.session_state.grading_advice)
-                    
-                    # Add button to use grading advice in the grading process
-                    st.session_state.use_analysis_in_grading = st.checkbox(
-                        "Use this grading advice when grading submissions", 
-                        value=True
-                    )
+                    # Don't display the analysis here since it will be shown in the expander below
+                    # Just set the default value for using analysis in grading
+                    st.session_state.use_analysis_in_grading = True
             else:
                 st.error("Failed to extract text from the assignment file.")
 
 # Show the current analysis if it exists
 if st.session_state.rubric_improvements and st.session_state.grading_advice:
-    with st.expander("View Rubric Analysis", expanded=False):
+    with st.expander("View Rubric Analysis", expanded=True):
         col1, col2 = st.columns(2)
         
         with col1:
