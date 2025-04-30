@@ -20,8 +20,12 @@ st.set_page_config(
 # Initialize session state
 if 'api_key' not in st.session_state:
     st.session_state.api_key = None
-if 'rubric_feedback' not in st.session_state:
-    st.session_state.rubric_feedback = None
+if 'rubric_improvements' not in st.session_state:
+    st.session_state.rubric_improvements = None
+if 'grading_advice' not in st.session_state:
+    st.session_state.grading_advice = None
+if 'use_analysis_in_grading' not in st.session_state:
+    st.session_state.use_analysis_in_grading = False
 
 # Define Pydantic models for structured output
 class ImprovementSuggestion(BaseModel):
@@ -48,7 +52,7 @@ def extract_text_from_pdf(pdf_file):
     return text
 
 def analyze_rubric(assignment_rubric_text, api_key):
-    """Analyze the rubric/assignment to provide feedback for better grading."""
+    """Analyze the rubric/assignment to provide improvement recommendations and grading advice."""
     try:
         # Configure the API
         genai.configure(api_key=api_key)
@@ -59,27 +63,51 @@ def analyze_rubric(assignment_rubric_text, api_key):
         # Create the prompt
         prompt = f"""
         You are an expert educator reviewing a grading rubric and assignment. 
-        Please analyze the following assignment and rubric to provide insights on:
+        Please analyze the following assignment and rubric to provide:
         
-        1. The key areas that should be assessed
-        2. Important details that graders should look for
-        3. Common pitfalls or misconceptions students might have
-        4. Advice for grading consistently and fairly
+        1. RUBRIC IMPROVEMENT RECOMMENDATIONS: Analyze the rubric critically and suggest specific improvements 
+           that would make it clearer and more effective for consistent grading. Focus on structural improvements, 
+           clarity enhancements, and adding specific criteria that may be missing.
+        
+        2. GRADING ADVICE: Provide specific advice for any AI or human grader on how to interpret and apply 
+           this rubric consistently. Highlight key points to look for in submissions, potential pitfalls or 
+           misconceptions, and advice for fair evaluation.
         
         Assignment and Rubric:
         {assignment_rubric_text}
         
-        Provide a detailed analysis that would help someone grade this assignment effectively.
+        Format your response with clear section headers "## RUBRIC IMPROVEMENT RECOMMENDATIONS" and "## GRADING ADVICE".
+        Be specific, actionable, and concise in your recommendations.
         """
         
         # Generate response
         response = model.generate_content(prompt)
-        return response.text
+        response_text = response.text
+        
+        # Extract the two sections
+        improvements_section = ""
+        advice_section = ""
+        
+        # Extract Rubric Improvement Recommendations
+        improvements_match = re.search(r'## RUBRIC IMPROVEMENT RECOMMENDATIONS(.*?)(?=## GRADING ADVICE|\Z)', response_text, re.DOTALL)
+        if improvements_match:
+            improvements_section = improvements_match.group(1).strip()
+        
+        # Extract Grading Advice
+        advice_match = re.search(r'## GRADING ADVICE(.*)', response_text, re.DOTALL)
+        if advice_match:
+            advice_section = advice_match.group(1).strip()
+        
+        return {
+            "improvements": improvements_section,
+            "advice": advice_section,
+            "full_response": response_text
+        }
     except Exception as e:
         st.error(f"Error analyzing rubric: {str(e)}")
         return None
 
-def grade_assignment(assignment_text, solution_text, submission_text, api_key):
+def grade_assignment(assignment_text, solution_text, submission_text, api_key, include_grading_advice=False, grading_advice=None):
     """Grade the assignment using Gemini with structured output."""
     try:
         # Configure the API
@@ -106,7 +134,7 @@ def grade_assignment(assignment_text, solution_text, submission_text, api_key):
             safety_settings=safety_settings
         )
         
-        # Create the prompt with structured output instructions
+        # Create the base prompt
         prompt = f"""
         You are an expert teacher grading an assignment. Please grade the following student submission 
         based on the assignment requirements and provided solution.
@@ -119,6 +147,18 @@ def grade_assignment(assignment_text, solution_text, submission_text, api_key):
         
         Student Submission:
         {submission_text}
+        """
+        
+        # Include grading advice if requested
+        if include_grading_advice and grading_advice:
+            prompt += f"""
+            
+            IMPORTANT GRADING ADVICE:
+            {grading_advice}
+            """
+        
+        # Add structured output instructions
+        prompt += """
         
         Please provide a detailed evaluation of the student's work, highlighting strengths, weaknesses,
         and areas for improvement. Be specific and constructive.
@@ -286,14 +326,49 @@ if assignment_file and st.button("Analyze Rubric/Assignment"):
         with st.spinner("Analyzing rubric and assignment..."):
             assignment_text = extract_text_from_pdf(assignment_file)
             if assignment_text:
-                rubric_feedback = analyze_rubric(assignment_text, st.session_state.api_key)
-                if rubric_feedback:
-                    st.session_state.rubric_feedback = rubric_feedback
+                analysis_result = analyze_rubric(assignment_text, st.session_state.api_key)
+                if analysis_result:
+                    st.session_state.rubric_improvements = analysis_result["improvements"]
+                    st.session_state.grading_advice = analysis_result["advice"]
                     st.success("Rubric analysis completed!")
-                    st.markdown("### Rubric Analysis")
-                    st.markdown(rubric_feedback)
+                    
+                    # Display the analysis in two columns
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("### Rubric Improvement Recommendations")
+                        st.markdown(st.session_state.rubric_improvements)
+                    
+                    with col2:
+                        st.markdown("### Grading Advice")
+                        st.markdown(st.session_state.grading_advice)
+                    
+                    # Add button to use grading advice in the grading process
+                    st.session_state.use_analysis_in_grading = st.checkbox(
+                        "Use this grading advice when grading submissions", 
+                        value=True
+                    )
             else:
                 st.error("Failed to extract text from the assignment file.")
+
+# Show the current analysis if it exists
+if st.session_state.rubric_improvements and st.session_state.grading_advice:
+    with st.expander("View Rubric Analysis", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Rubric Improvement Recommendations")
+            st.markdown(st.session_state.rubric_improvements)
+        
+        with col2:
+            st.markdown("### Grading Advice")
+            st.markdown(st.session_state.grading_advice)
+        
+        # Allow changing the setting
+        st.session_state.use_analysis_in_grading = st.checkbox(
+            "Use this grading advice when grading submissions", 
+            value=st.session_state.use_analysis_in_grading
+        )
 
 # Grade button
 if st.button("Grade Assignment"):
@@ -314,7 +389,9 @@ if st.button("Grade Assignment"):
                     assignment_text,
                     solution_text,
                     submission_text,
-                    st.session_state.api_key
+                    st.session_state.api_key,
+                    include_grading_advice=st.session_state.use_analysis_in_grading,
+                    grading_advice=st.session_state.grading_advice
                 )
                 
                 if result:
@@ -322,13 +399,6 @@ if st.button("Grade Assignment"):
                     display_grading_results(result)
             else:
                 st.error("Failed to extract text from one or more PDF files. Please ensure they are text-based PDFs.")
-
-# Show rubric feedback if it exists
-if st.session_state.rubric_feedback and not st.button("Clear Rubric Analysis"):
-    st.markdown("### Previous Rubric Analysis")
-    st.markdown(st.session_state.rubric_feedback)
-else:
-    st.session_state.rubric_feedback = None
 
 # Footer
 st.markdown("---")
