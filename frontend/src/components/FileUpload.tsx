@@ -72,7 +72,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             py={4}
           >
             <Icon
-              as={FaCloudUploadAlt}
+              as={FaCloudUploadAlt as React.ElementType}
               w={10}
               h={10}
               color={isDragActive ? 'brand.500' : textColor}
@@ -107,7 +107,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           justify="space-between"
         >
           <Flex align="center">
-            <Icon as={FaFileAlt} mr={3} color="brand.500" />
+            <Icon as={FaFileAlt as React.ElementType} mr={3} color="brand.500" />
             <Box>
               <Text fontWeight="medium" isTruncated maxW="200px">
                 {file.name}
@@ -128,7 +128,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               onClick={handleClearFile}
               aria-label="Remove file"
             >
-              <Icon as={FaTrash} />
+              <Icon as={FaTrash as React.ElementType} />
             </Button>
           </Flex>
         </Flex>

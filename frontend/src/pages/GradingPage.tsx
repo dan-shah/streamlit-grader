@@ -8,16 +8,20 @@ import {
   Heading,
   Input,
   Stack,
-  Text,
   Textarea,
   VStack,
   HStack,
   useToast,
   Divider,
+  IconButton,
+  Tooltip,
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
+import { FaEye, FaFileDownload } from 'react-icons/fa';
 import FileUpload from '../components/FileUpload';
+import PDFViewer from '../components/PDFViewer';
 import { gradeAssignment } from '../services/gradingService';
+import { loadSampleFiles, type SampleFiles } from '../services/sampleService';
 
 interface FormData {
   apiKey: string;
@@ -39,6 +43,7 @@ const GradingPage: React.FC = () => {
     gradingAdvice: '',
   });
   
+  const [selectedPDF, setSelectedPDF] = useState<{ file: File | null; title: string } | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -54,6 +59,42 @@ const GradingPage: React.FC = () => {
 
   const handleFileChange = (fieldName: string, file: File | null) => {
     setFormData({ ...formData, [fieldName]: file });
+  };
+
+  const handleViewPDF = (file: File | null, title: string) => {
+    if (file) {
+      setSelectedPDF({ file, title });
+    }
+  };
+
+  const loadSampleFilesHandler = async () => {
+    try {
+      setIsLoading(true);
+      const samples = await loadSampleFiles();
+      setFormData(prev => ({
+        ...prev,
+        assignment: samples.assignment,
+        solution: samples.solution,
+        submission: samples.submission,
+      }));
+      toast({
+        title: 'Sample Files Loaded',
+        description: 'Sample PDFs have been loaded successfully',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error Loading Samples',
+        description: error instanceof Error ? error.message : 'Failed to load sample files',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +126,7 @@ const GradingPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('Preparing form data for submission...');
       const formPayload = new FormData();
       formPayload.append('api_key', formData.apiKey);
       formPayload.append('assignment', formData.assignment);
@@ -96,9 +138,11 @@ const GradingPage: React.FC = () => {
         formPayload.append('grading_advice', formData.gradingAdvice);
       }
 
+      console.log('Submitting grading request...');
       const result = await gradeAssignment(formPayload);
+      console.log('Received grading result:', result);
       
-      // Store result in localStorage or context
+      // Store result in localStorage
       localStorage.setItem('gradingResult', JSON.stringify(result));
       
       // Navigate to results page
@@ -112,11 +156,15 @@ const GradingPage: React.FC = () => {
         isClosable: true,
       });
     } catch (error) {
+      console.error('Detailed submission error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      console.error('Error details:', errorMessage);
+      
       toast({
         title: 'Error Grading Assignment',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        description: errorMessage,
         status: 'error',
-        duration: 5000,
+        duration: 10000,
         isClosable: true,
       });
     } finally {
@@ -143,34 +191,87 @@ const GradingPage: React.FC = () => {
           <Divider />
           
           <VStack spacing={4} align="start">
-            <Heading size="md">Upload Files</Heading>
+            <HStack width="100%" justify="space-between">
+              <Heading size="md">Upload Files</Heading>
+              <Button
+                onClick={loadSampleFilesHandler}
+                isLoading={isLoading}
+                colorScheme="blue"
+                variant="outline"
+                leftIcon={<FaFileDownload />}
+              >
+                Load Sample Files
+              </Button>
+            </HStack>
             
             <HStack width="100%" spacing={8} alignItems="flex-start">
               <FormControl isRequired flex={1}>
                 <FormLabel>Assignment & Rubric</FormLabel>
-                <FileUpload
-                  onFileChange={(file) => handleFileChange('assignment', file)}
-                  acceptedFileTypes="application/pdf"
-                  fieldName="assignment"
-                />
+                <Box position="relative">
+                  <FileUpload
+                    onFileChange={(file) => handleFileChange('assignment', file)}
+                    acceptedFileTypes="application/pdf"
+                    fieldName="assignment"
+                  />
+                  {formData.assignment && (
+                    <Tooltip label="View PDF">
+                      <IconButton
+                        icon={<FaEye />}
+                        aria-label="View PDF"
+                        position="absolute"
+                        top="0"
+                        right="-45px"
+                        onClick={() => handleViewPDF(formData.assignment, 'Assignment & Rubric')}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>
               </FormControl>
               
               <FormControl isRequired flex={1}>
                 <FormLabel>Solution</FormLabel>
-                <FileUpload
-                  onFileChange={(file) => handleFileChange('solution', file)}
-                  acceptedFileTypes="application/pdf"
-                  fieldName="solution"
-                />
+                <Box position="relative">
+                  <FileUpload
+                    onFileChange={(file) => handleFileChange('solution', file)}
+                    acceptedFileTypes="application/pdf"
+                    fieldName="solution"
+                  />
+                  {formData.solution && (
+                    <Tooltip label="View PDF">
+                      <IconButton
+                        icon={<FaEye />}
+                        aria-label="View PDF"
+                        position="absolute"
+                        top="0"
+                        right="-45px"
+                        onClick={() => handleViewPDF(formData.solution, 'Solution')}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>
               </FormControl>
               
               <FormControl isRequired flex={1}>
                 <FormLabel>Student Submission</FormLabel>
-                <FileUpload
-                  onFileChange={(file) => handleFileChange('submission', file)}
-                  acceptedFileTypes="application/pdf"
-                  fieldName="submission"
-                />
+                <Box position="relative">
+                  <FileUpload
+                    onFileChange={(file) => handleFileChange('submission', file)}
+                    acceptedFileTypes="application/pdf"
+                    fieldName="submission"
+                  />
+                  {formData.submission && (
+                    <Tooltip label="View PDF">
+                      <IconButton
+                        icon={<FaEye />}
+                        aria-label="View PDF"
+                        position="absolute"
+                        top="0"
+                        right="-45px"
+                        onClick={() => handleViewPDF(formData.submission, 'Student Submission')}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>
               </FormControl>
             </HStack>
           </VStack>
@@ -211,6 +312,15 @@ const GradingPage: React.FC = () => {
           </Button>
         </Stack>
       </form>
+
+      {selectedPDF && selectedPDF.file && (
+        <PDFViewer
+          file={selectedPDF.file}
+          title={selectedPDF.title}
+          isOpen={!!selectedPDF}
+          onClose={() => setSelectedPDF(null)}
+        />
+      )}
     </Box>
   );
 };

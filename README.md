@@ -43,7 +43,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The backend will be available at [http://localhost:8000](http://localhost:8000).
+The backend will be available at [http://localhost:8001](http://localhost:8001).
 
 #### Frontend
 ```bash
@@ -61,8 +61,8 @@ docker-compose up -d
 
 The application will be available at:
 - Frontend: [http://localhost:3000](http://localhost:3000)
-- Backend API: [http://localhost:8000](http://localhost:8000)
-- API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Backend API: [http://localhost:8001](http://localhost:8001)
+- API Documentation: [http://localhost:8001/docs](http://localhost:8001/docs)
 
 ## API Endpoints
 

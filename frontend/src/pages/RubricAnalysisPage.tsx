@@ -88,12 +88,14 @@ const RubricAnalysisPage: React.FC = () => {
         isClosable: true,
       });
     } catch (error) {
+      console.error('Error analyzing rubric:', error);
       toast({
         title: 'Error Analyzing Rubric',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
         status: 'error',
-        duration: 5000,
+        duration: 10000,
         isClosable: true,
+        position: 'top',
       });
     } finally {
       setIsLoading(false);

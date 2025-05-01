@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Flex, Text, Button, Stack, Link, useColorModeValue } from '@chakra-ui/react';
+import { Box, Flex, Text, Stack, Link, useColorModeValue } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 
 const NavbarLink: React.FC<{ to: string; children: React.ReactNode }> = ({ to, children }) => (

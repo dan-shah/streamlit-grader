@@ -16,23 +16,25 @@ import {
   ListIcon,
   Flex,
   useColorModeValue,
-  useToast
+  useToast,
+  Icon
 } from '@chakra-ui/react';
-import { FaCheck, FaMinus, FaArrowRight, FaDownload } from 'react-icons/fa';
-import { GradingFeedback } from '../types/grading';
-import { calculateTotalScore } from '../services/gradingService';
+import { FaCheck, FaArrowRight, FaDownload } from 'react-icons/fa';
+import { GradingFeedback, GradingResult, PointDeduction, ConceptImprovement } from '../types/grading';
+import { calculateTotalScore, downloadPDF, downloadDocx } from '../services/gradingService';
 
 const ResultsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const [result, setResult] = useState<GradingFeedback | null>(null);
+  const [result, setResult] = useState<GradingResult | null>(null);
   const [scoreDetails, setScoreDetails] = useState<{
     calculatedScore: number;
     reportedScore: number;
     discrepancy: boolean;
     totalDeductions: number;
   } | null>(null);
+  const backgroundColor = useColorModeValue('white', 'gray.800');
 
   useEffect(() => {
     // For demonstration purposes, we're loading from localStorage
@@ -40,7 +42,7 @@ const ResultsPage: React.FC = () => {
     try {
       const storedResult = localStorage.getItem('gradingResult');
       if (storedResult) {
-        const parsedResult = JSON.parse(storedResult) as GradingFeedback;
+        const parsedResult = JSON.parse(storedResult) as GradingResult;
         setResult(parsedResult);
         
         // Calculate score details
@@ -71,26 +73,41 @@ const ResultsPage: React.FC = () => {
     }
   }, [id, toast]);
 
-  const handleDownloadPDF = () => {
-    // PDF export functionality would be implemented here
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'PDF download will be available in a future update',
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDownloadPDF = async (details: GradingResult): Promise<void> => {
+    try {
+      await downloadPDF(details);
+      toast({
+        title: "PDF downloaded successfully",
+        status: "success",
+        duration: 3000,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Failed to download PDF",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        status: "error",
+        duration: 3000,
+      });
+    }
   };
 
-  const handleDownloadDocx = () => {
-    // DOCX export functionality would be implemented here
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'Word document download will be available in a future update',
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
-    });
+  const handleDownloadDocx = async () => {
+    try {
+      if (!result) return;
+      await downloadDocx(result);
+      toast({
+        title: "DOCX downloaded successfully",
+        status: "success",
+        duration: 3000,
+      });
+    } catch (err: unknown) {
+      toast({
+        title: "Failed to download DOCX",
+        description: err instanceof Error ? err.message : "Unknown error occurred",
+        status: "error",
+        duration: 3000,
+      });
+    }
   };
 
   if (!result) {
@@ -105,18 +122,17 @@ const ResultsPage: React.FC = () => {
     );
   }
 
-  const scoreToUse = scoreDetails?.calculatedScore ?? result.numerical_grade;
-  const backgroundColor = useColorModeValue('white', 'gray.800');
+  const scoreToUse = scoreDetails?.calculatedScore ?? result.total_score;
 
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={6}>
         <Heading>Grading Results</Heading>
         <HStack>
-          <Button leftIcon={<FaDownload />} onClick={handleDownloadPDF} variant="outline">
+          <Button leftIcon={<Icon as={FaDownload as React.ElementType} />} onClick={() => handleDownloadPDF(result)} variant="outline">
             PDF
           </Button>
-          <Button leftIcon={<FaDownload />} onClick={handleDownloadDocx} variant="outline">
+          <Button leftIcon={<Icon as={FaDownload as React.ElementType} />} onClick={handleDownloadDocx} variant="outline">
             DOCX
           </Button>
         </HStack>
@@ -154,9 +170,9 @@ const ResultsPage: React.FC = () => {
             
             <Heading size="md" mb={3}>Strengths</Heading>
             <List spacing={2} mb={6}>
-              {result.strengths.map((strength, index) => (
+              {result.strengths.map((strength: string, index: number) => (
                 <ListItem key={index} display="flex">
-                  <ListIcon as={FaCheck} color="green.500" mt={1} />
+                  <ListIcon as={FaCheck as React.ElementType} color="green.500" mt={1} />
                   <Text>{strength}</Text>
                 </ListItem>
               ))}
@@ -169,7 +185,7 @@ const ResultsPage: React.FC = () => {
             <Heading size="md" mb={4}>Point Deductions</Heading>
             
             <Stack spacing={4} mb={6}>
-              {result.point_deductions.map((deduction, index) => (
+              {result.point_deductions.map((deduction: PointDeduction, index: number) => (
                 <Box key={index} p={3} bg="red.50" rounded="md" borderWidth="1px" borderColor="red.200">
                   <HStack justify="space-between" mb={1}>
                     <Text fontWeight="bold">{deduction.area}</Text>
@@ -205,12 +221,12 @@ const ResultsPage: React.FC = () => {
             <Heading size="md" mb={4}>Improvement Suggestions</Heading>
             
             <Stack spacing={4}>
-              {result.concept_improvements.map((improvement, index) => (
+              {result.concept_improvements.map((improvement: ConceptImprovement, index: number) => (
                 <Box key={index} p={3} bg="blue.50" rounded="md" borderWidth="1px" borderColor="blue.200">
                   <Text fontWeight="bold" mb={1}>{improvement.concept}</Text>
                   <HStack align="flex-start" spacing={2}>
                     <Box mt={1}>
-                      <FaArrowRight size={12} color="#4299E1" />
+                      <Icon as={FaArrowRight as React.ElementType} boxSize="12px" color="#4299E1" />
                     </Box>
                     <Text>{improvement.suggestion}</Text>
                   </HStack>

@@ -1,15 +1,74 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from typing import Optional
 import io
+from pathlib import Path
 from pydantic import ValidationError
 import json
+import zipfile
+from datetime import datetime
 
-from models import GradingFeedback, GradeRequest
-from services.ai_service import grade_assignment
-from utils import extract_text_from_pdf
+from app.models import GradingFeedback, GradeRequest
+from app.services.ai_service import grade_assignment
+from app.utils import extract_text_from_pdf, generate_results_pdf, export_to_docx
+
+# Get the directory of the current file
+CURRENT_DIR = Path(__file__).parent
+# Go up three levels (routers -> app -> backend -> project_root) then into 'data'
+DATA_DIR = CURRENT_DIR.parent.parent.parent / "data"
 
 router = APIRouter()
+
+@router.get("/sample-files")
+async def get_sample_files():
+    """
+    Get sample PDF files for testing the grading system.
+    Returns a ZIP file containing sample assignment, solution, and submission PDFs.
+    """
+    try:
+        # Use the calculated absolute path
+        data_dir = DATA_DIR 
+        if not data_dir.exists():
+             raise HTTPException(status_code=500, detail=f"Data directory not found at expected location: {data_dir}")
+
+        assignment_file = data_dir / "arima_hw5_assignment_and_rubric.pdf"
+        solution_file = data_dir / "arima_hw5_solution_perfect.pdf"
+        submission_file = data_dir / "arima_hw5_student_Cplus.pdf"
+        
+        files_to_zip = {
+            "sample_assignment.pdf": assignment_file,
+            "sample_solution.pdf": solution_file,
+            "sample_submission.pdf": submission_file
+        }
+
+        for file_path in files_to_zip.values():
+            if not file_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sample file not found: {file_path.name}. Please ensure the data directory contains the required files."
+                )
+        
+        # Create zip in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for filename, file_path in files_to_zip.items():
+                zipf.write(file_path, arcname=filename)
+        
+        zip_buffer.seek(0)
+        
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=sample_files.zip"}
+        )
+
+    except HTTPException as e:
+        # Re-raise HTTPExceptions to keep their status code and detail
+        raise e
+    except Exception as e:
+        # Catch other potential errors (e.g., file reading issues)
+        print(f"Error creating zip file: {e}") # Add logging for debugging
+        raise HTTPException(status_code=500, detail=f"Internal server error creating sample file archive: {str(e)}")
 
 @router.post("/grade-assignment", response_model=GradingFeedback)
 async def grade_assignment_endpoint(
@@ -98,5 +157,37 @@ async def calculate_total_score(grading_feedback: GradingFeedback):
                 "discrepancy": False,
                 "total_deductions": total_deducted
             }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/download-pdf")
+async def download_pdf(result: GradingFeedback):
+    """Generate and download a PDF of the grading results."""
+    try:
+        pdf_buffer = generate_results_pdf(result)
+        if not pdf_buffer:
+            raise HTTPException(status_code=500, detail="Failed to generate PDF")
+            
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=grading-result-{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/download-docx")
+async def download_docx(result: GradingFeedback):
+    """Generate and download a DOCX of the grading results."""
+    try:
+        docx_file = export_to_docx(result)
+        if not docx_file:
+            raise HTTPException(status_code=500, detail="Failed to generate DOCX")
+            
+        return StreamingResponse(
+            docx_file,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=grading-result-{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

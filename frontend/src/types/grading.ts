@@ -9,12 +9,17 @@ export interface ConceptImprovement {
   suggestion: string;
 }
 
-export interface GradingFeedback {
-  numerical_grade: number;
-  overall_assessment: string;
+export interface GradingResult {
+  id: string;
   strengths: string[];
   point_deductions: PointDeduction[];
   concept_improvements: ConceptImprovement[];
+  total_score: number;
+  overall_assessment: string;
+}
+
+export interface GradingFeedback extends GradingResult {
+  feedback: string;
 }
 
 export interface GradeRequest {
@@ -24,8 +29,8 @@ export interface GradeRequest {
 }
 
 export interface ScoreCalculationResponse {
-  calculated_score: number;
-  reported_score: number;
+  calculatedScore: number;
+  reportedScore: number;
   discrepancy: boolean;
-  total_deductions: number;
+  totalDeductions: number;
 } 

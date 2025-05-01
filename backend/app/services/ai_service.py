@@ -4,7 +4,7 @@ import re
 import json
 from typing import Dict, Any, Optional
 
-from models import GradingFeedback, RubricAnalysisResponse
+from app.models import GradingFeedback, RubricAnalysisResponse
 
 # Rubric Analysis
 def analyze_rubric(assignment_rubric_text: str, api_key: str) -> RubricAnalysisResponse:

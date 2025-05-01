@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 import uvicorn
 
 # Import routers
-from routers import grading, rubric
+from app.routers import grading, rubric
 
 app = FastAPI(
     title="AI Assignment Grader API",
@@ -39,4 +39,4 @@ async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8001, reload=True) 
