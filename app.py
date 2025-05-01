@@ -282,8 +282,22 @@ def get_file_download_link(file_path, link_text):
 def display_grading_results(results):
     """Display grading results in a structured format."""
     if isinstance(results, GradingFeedback):
+        # Calculate total deductions first
+        total_deducted = 0
+        for deduction in results.point_deductions:
+            if isinstance(deduction, dict):
+                total_deducted += deduction.get('points', 0)
+            else:
+                try:
+                    total_deducted += deduction.points
+                except AttributeError:
+                    pass
+        
+        # Calculate final score based on deductions
+        final_score = 100 - total_deducted
+        
         # Display structured results
-        st.markdown(f"### Grade: {results.numerical_grade}/100")
+        st.markdown(f"### Grade: {final_score}/100")
         
         st.markdown("#### Overall Assessment")
         st.write(results.overall_assessment)
@@ -295,19 +309,16 @@ def display_grading_results(results):
         
         with st.container():
             st.markdown("#### Point Deductions")
-            total_deducted = 0
             for i, deduction in enumerate(results.point_deductions, 1):
                 # Handle both object and dictionary formats
                 if isinstance(deduction, dict):
                     area = deduction.get('area', f'Area {i}')
                     points = deduction.get('points', 0)
                     reason = deduction.get('reason', 'No reason provided')
-                    total_deducted += points
                     st.markdown(f"**{i}. {area} (-{points} points)**")
                     st.markdown(f"   {reason}")
                 else:
                     try:
-                        total_deducted += deduction.points
                         st.markdown(f"**{i}. {deduction.area} (-{deduction.points} points)**")
                         st.markdown(f"   {deduction.reason}")
                     except AttributeError:
@@ -325,12 +336,7 @@ def display_grading_results(results):
             with col2:
                 st.markdown("100")
                 st.markdown(f"-{total_deducted}")
-                st.markdown(f"{results.numerical_grade}")
-            
-            # Verify that the calculation adds up
-            expected_score = 100 - total_deducted
-            if expected_score != results.numerical_grade:
-                st.warning(f"Note: There appears to be a discrepancy in point calculation. Based on deductions, the expected score would be {expected_score}.")
+                st.markdown(f"{final_score}")
         
         with st.container():
             st.markdown("#### Concept Improvement Suggestions")
