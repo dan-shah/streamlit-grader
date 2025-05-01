@@ -236,6 +236,7 @@ def grade_assignment(assignment_text, solution_text, submission_text, api_key, i
                 json_str = json_match.group(0)
             else:
                 # If no JSON found, return the raw text
+                st.warning("Could not find valid JSON in the response. Using raw text instead.")
                 return {"raw_response": text_response}
         
         try:
@@ -246,6 +247,7 @@ def grade_assignment(assignment_text, solution_text, submission_text, api_key, i
             return grading_feedback
         except Exception as e:
             st.error(f"Error parsing structured response: {str(e)}")
+            st.warning("Falling back to raw response due to parsing error.")
             return {"raw_response": text_response}
             
     except Exception as e:
@@ -857,6 +859,14 @@ with tabs[1]:  # Results View tab
                 display_grading_results(st.session_state.grading_results)
     else:
         st.info("No grading results available. Please grade an assignment first.")
+        if st.button("Debug Info"):
+            st.write("Session State Debug Info:")
+            st.write(f"API Key Set: {bool(st.session_state.api_key)}")
+            st.write(f"Grading Results: {bool(st.session_state.grading_results)}")
+            st.write(f"Results Dict: {bool(st.session_state.results_dict)}")
+            st.write(f"Results PDF: {bool(st.session_state.results_pdf)}")
+            st.write(f"Assignment Text: {bool(st.session_state.assignment_text)}")
+            st.write(f"Submission Text: {bool(st.session_state.submission_text)}")
 
 with tabs[2]:  # Export Results tab
     st.header("Export Results")
